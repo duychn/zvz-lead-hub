@@ -38,6 +38,21 @@ async function processLead(input: IncomingLead, env: Env) {
   return { duplicate: false as const, lead, score, forwarded };
 }
 
+/** Sites allowed to call the public preview endpoint from the browser. */
+const PREVIEW_ORIGINS = /^(https:\/\/(www\.)?zvzdigital\.com|https:\/\/[a-z0-9-]+\.zvz-digital\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;
+
+function withCors(request: Request, response: Response): Response {
+  const origin = request.headers.get("origin");
+  if (!origin || !PREVIEW_ORIGINS.test(origin)) return response;
+  const headers = new Headers(response.headers);
+  headers.set("access-control-allow-origin", origin);
+  headers.set("access-control-allow-methods", "POST, OPTIONS");
+  headers.set("access-control-allow-headers", "content-type");
+  headers.set("access-control-max-age", "86400");
+  headers.append("vary", "Origin");
+  return new Response(response.body, { status: response.status, headers });
+}
+
 const isAuthorized = (request: Request, token?: string) =>
   Boolean(token) && request.headers.get("authorization") === `Bearer ${token}`;
 
@@ -91,12 +106,18 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
+    const isPreview = new URL(request.url).pathname === "/v1/leads/preview";
+    if (isPreview && request.method === "OPTIONS") return withCors(request, new Response(null, { status: 204 }));
+    let response: Response;
     try {
-      return await route(request, env, ctx);
+      response = await route(request, env, ctx);
     } catch (error) {
-      if (error instanceof InvalidLeadError) return json({ error: error.message }, 400);
-      console.error(error);
-      return json({ error: "Internal error." }, 500);
+      if (error instanceof InvalidLeadError) response = json({ error: error.message }, 400);
+      else {
+        console.error(error);
+        response = json({ error: "Internal error." }, 500);
+      }
     }
+    return isPreview ? withCors(request, response) : response;
   },
 } satisfies ExportedHandler<Env>;
