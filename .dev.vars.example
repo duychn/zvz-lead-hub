@@ -1,0 +1,9 @@
+# Copy to .dev.vars for `npm run dev`. Every value is optional;
+# the matching feature is skipped when its value is empty.
+INTAKE_TOKEN=
+ANTHROPIC_API_KEY=
+HUBSPOT_TOKEN=
+N8N_WEBHOOK_URL=
+META_VERIFY_TOKEN=
+META_APP_SECRET=
+META_PAGE_TOKEN=
