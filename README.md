@@ -29,6 +29,7 @@ Website form / API ────┼─► normalize ─► de-duplicate ─► sc
 | `GET` | `/health` | – | Which scorer is active |
 | `POST` | `/v1/leads/preview` | – | Normalize + score only. Rate limited to 10/min per IP. |
 | `POST` | `/v1/leads` | `Bearer INTAKE_TOKEN` | Full pipeline |
+| `POST` | `/v1/contact` | Website origin | zvzdigital.com contact form: scores the enquiry and emails it to the team via Resend. Rate limited to 3/min per IP, honeypot field `website`. |
 | `GET`/`POST` | `/webhooks/meta` | Meta signature | Meta Lead Ads |
 
 ```bash
@@ -51,6 +52,7 @@ npm test
 ```bash
 npx wrangler secret put ANTHROPIC_API_KEY   # optional, enables Claude scoring
 npx wrangler secret put INTAKE_TOKEN        # required for POST /v1/leads
+npx wrangler secret put RESEND_API_KEY      # required for POST /v1/contact
 npm run deploy
 ```
 

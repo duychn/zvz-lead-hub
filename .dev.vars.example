@@ -2,6 +2,7 @@
 # the matching feature is skipped when its value is empty.
 INTAKE_TOKEN=
 ANTHROPIC_API_KEY=
+RESEND_API_KEY=
 HUBSPOT_TOKEN=
 N8N_WEBHOOK_URL=
 META_VERIFY_TOKEN=

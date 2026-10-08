@@ -1,3 +1,4 @@
+import { handleContact, type ContactInput } from "./contact";
 import { isDuplicate } from "./dedupe";
 import { demoPage } from "./demo";
 import { forwardLead } from "./forward";
@@ -38,7 +39,8 @@ async function processLead(input: IncomingLead, env: Env) {
   return { duplicate: false as const, lead, score, forwarded };
 }
 
-/** Sites allowed to call the public preview endpoint from the browser. */
+/** Browser-facing endpoints, callable only from the ZvZ website (and local previews). */
+const BROWSER_PATHS = new Set(["/v1/leads/preview", "/v1/contact"]);
 const PREVIEW_ORIGINS = /^(https:\/\/(www\.)?zvzdigital\.com|https:\/\/[a-z0-9-]+\.zvz-digital\.pages\.dev|http:\/\/(localhost|127\.0\.0\.1):\d+)$/;
 
 function withCors(request: Request, response: Response): Response {
@@ -77,6 +79,16 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
       return json({ lead, score: await scoreLead(lead, env.ANTHROPIC_API_KEY), stored: false, forwarded: false });
     }
 
+    // Website contact form: emails the scored enquiry to the ZvZ team.
+    case "POST /v1/contact": {
+      if (!env.RESEND_API_KEY) return json({ error: "Contact delivery is not configured." }, 503);
+      const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+      if (env.CONTACT_LIMITER && !(await env.CONTACT_LIMITER.limit({ key: ip })).success) {
+        return json({ error: "Too many requests. Try again in a minute." }, 429);
+      }
+      return json(await handleContact((await readLead(request)) as ContactInput, env));
+    }
+
     case "POST /v1/leads": {
       if (!env.INTAKE_TOKEN) return json({ error: "Intake is not configured." }, 503);
       if (!isAuthorized(request, env.INTAKE_TOKEN)) return json({ error: "Unauthorized." }, 401);
@@ -106,7 +118,7 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
-    const isPreview = new URL(request.url).pathname === "/v1/leads/preview";
+    const isPreview = BROWSER_PATHS.has(new URL(request.url).pathname);
     if (isPreview && request.method === "OPTIONS") return withCors(request, new Response(null, { status: 204 }));
     let response: Response;
     try {

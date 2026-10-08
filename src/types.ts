@@ -5,6 +5,13 @@ export interface Env {
   LEADS: KVNamespace;
   /** Rate limiter for the public demo endpoint. */
   DEMO_LIMITER?: RateLimit;
+  /** Stricter rate limiter for the website contact form. */
+  CONTACT_LIMITER?: RateLimit;
+  /** Sends contact-form notifications; without it POST /v1/contact returns 503. */
+  RESEND_API_KEY?: string;
+  /** Overrides for the notification recipient and sender (sender domain must be verified in Resend). */
+  CONTACT_TO?: string;
+  CONTACT_FROM?: string;
   /** Bearer token required by POST /v1/leads. */
   INTAKE_TOKEN?: string;
   /** Enables Claude scoring; without it the rule-based scorer is used. */
