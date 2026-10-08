@@ -60,6 +60,22 @@ describe("POST /v1/contact", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("drops forms submitted faster than a person could fill them", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const result = await handleContact({ ...enquiry, elapsedMs: 400 }, { LEADS: memoryKv(), RESEND_API_KEY: "re_test" } as Env);
+    expect(result.sent).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("emails an identical repeat from the same contact only once", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("{}", { status: 200 }));
+    const env = { LEADS: memoryKv(), RESEND_API_KEY: "re_test" } as Env;
+    await handleContact({ ...enquiry, elapsedMs: 9000 }, env);
+    await handleContact({ ...enquiry, elapsedMs: 9000 }, env);
+    await handleContact({ ...enquiry, message: "Một câu hỏi khác về giá", elapsedMs: 9000 }, env);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("rejects an empty message", async () => {
     const res = await post({ LEADS: memoryKv(), RESEND_API_KEY: "re_test" } as Env, { ...enquiry, message: "" });
     expect(res.status).toBe(400);
